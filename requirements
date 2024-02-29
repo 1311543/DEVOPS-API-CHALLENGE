@@ -2,3 +2,4 @@ Flask
 SQLAlchemy
 Alembic
 pandas
+flask_sqlalchemy

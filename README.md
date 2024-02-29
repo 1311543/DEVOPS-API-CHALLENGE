@@ -8,7 +8,7 @@
 5. Run the Flask app: `python app.py`.
 
 **3. Install dependencies **
-
+api.py
 `python -m venv venv`
 
 `venv\Scripts\activate`
