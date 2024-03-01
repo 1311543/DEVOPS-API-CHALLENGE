@@ -1,0 +1,22 @@
+version: '3'
+services:
+  mysql-demo3:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: Eliam
+      MYSQL_DATABASE: 'demo_db'
+
+  api:
+    image: francisjosue/globant-api2:latest
+    environment:
+      - FLASK_APP=app.py
+    build:
+      context: ./
+#    volumes:
+#      - ./:/app/
+#    command: ["flask", "run", "-h", "0.0.0.0", "-p", "8080"]
+#    command: /bin/sh -c "cd src && flask run -h 0.0.0.0 -p 8080"
+    command: /bin/sh -c "cd src ./alembic_migrations.sh & wait; cd src && flask run -h 0.0.0.0 -p 8080"
+
+    depends_on:
+      - mysql-demo3

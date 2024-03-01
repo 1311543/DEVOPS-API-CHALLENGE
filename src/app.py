@@ -2,11 +2,14 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 from flask import current_app
+from sqlalchemy import func, extract
 from datetime import datetime
+import subprocess
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@localhost:3306/demo_db'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@mysql-demo:3306/demo_db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@localhost:3306/demo_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@mysql-demo3:3306/demo_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -128,35 +131,135 @@ def upload_csv_jobs():
         , 200
 
 
-# def upload_csv_to_db(csv_file):
-#     upload_csv_to_db('../dataset/departments.csv')
-#     data = pd.read_csv(csv_file)
-#     for _, row in data.iterrows():
-#         department = Department(id=row['id'], name=row['name'])
-#         db.session.merge(department)  # Usde merge to avoid duplicates
-#     db.session.commit()
+@app.route('/employee-hires-2021')
+def employee_hires_2021():
+    """
+    SELECT
+    d.name AS Department,
+    j.name AS Job,
+    SUM(CASE WHEN QUARTER(e.hire_date) = 1 THEN 1 ELSE 0 END) AS Q1,
+    SUM(CASE WHEN QUARTER(e.hire_date) = 2 THEN 1 ELSE 0 END) AS Q2,
+    SUM(CASE WHEN QUARTER(e.hire_date) = 3 THEN 1 ELSE 0 END) AS Q3,
+    SUM(CASE WHEN QUARTER(e.hire_date) = 4 THEN 1 ELSE 0 END) AS Q4
+    FROM employees e
+    JOIN departments d ON e.department_id = d.id
+    JOIN jobs j ON e.job_id = j.id
+    WHERE YEAR(e.hire_date) = 2021
+    GROUP BY d.name, j.name
+    ORDER BY d.name, j.name;
+    :return:
+    """
+    results = db.session.query(
+        Department.name.label('department_name'),
+        Jobs.name.label('job_name'),
+        func.quarter(Employee.hire_date).label('quarter'),
+        func.count().label('num_employees'))\
+        .join(Employee.department)\
+        .join(Employee.job)\
+        .filter(func.year(Employee.hire_date) == 2021)\
+        .group_by('department_name', 'job_name', 'quarter')\
+        .all()
 
+    df = pd.DataFrame(results, columns=['department_name', 'job_name', 'quarter', 'num_employees'])
+
+    # Pivot the DataFrame
+    pivot_df = df.pivot_table(
+        index=['department_name', 'job_name'],
+        columns='quarter',
+        values='num_employees',
+        fill_value=0,  # Fill missing values with 0
+        aggfunc=sum  # Ensure the aggregation function is sum
+    ).reset_index()
+
+    # Rename columns for clarity
+    pivot_df.columns = ['Department', 'Job', 'Q1', 'Q2', 'Q3', 'Q4']
+
+    # Convert the pivoted DataFrame to a list of dictionaries for JSON response
+    data = pivot_df.to_dict(orient='records')
+
+    return jsonify(data)
+
+@app.route('/departments/higher-than-average-hires')
+def higher_than_average_hires():
+    """
+        SELECT
+        d.id AS id,
+        d.name AS department,
+        COUNT(e.id) AS hired
+    FROM
+        departments d
+    JOIN
+        employees e ON d.id = e.department_id
+    WHERE
+        YEAR(e.hire_date) = 2021
+    GROUP BY
+        d.id, d.name
+    HAVING
+        COUNT(e.id) > (SELECT AVG(department_hires) FROM (
+                            SELECT
+                                COUNT(e.id) AS department_hires
+                            FROM
+                                employees e
+                            WHERE
+                                YEAR(e.hire_date) = 2021
+                            GROUP BY
+                                e.department_id
+                       ) AS subquery)
+    ORDER BY
+        hired DESC;
+    :return:
+    """
+    total_hires_and_departments = db.session.query(
+        func.count(Employee.id).label('total_hires'),
+        func.count(func.distinct(Employee.department_id)).label('num_departments')
+    ).filter(extract('year', Employee.hire_date) == 2021).first()
+
+    # Calculate the average hires per department in 2021
+    avg_hires = (
+                total_hires_and_departments.total_hires / total_hires_and_departments.num_departments) if total_hires_and_departments.num_departments else 0
+
+    departments = db.session.query(
+        Department.id,
+        Department.name,
+        func.count(Employee.id).label('hired'))\
+        .join(Employee, Employee.department_id == Department.id)\
+        .filter(extract('year', Employee.hire_date) == 2021)\
+        .group_by(Department.id)\
+        .having(func.count(Employee.id) > avg_hires)\
+        .order_by(func.count(Employee.id).desc()
+                  ).all()
+
+    result = [{
+        'id': d[0],
+        'department': d[1],
+        'hired': d[2]
+    } for d in departments]
+
+    return jsonify(result)
 
 @app.route("/")
 def index():
-    csv_path = '../dataset/departments.csv'
-    headers = ["id", "name"]
-    df = pd.read_csv(csv_path, header=None, names=headers)
-    print(df.columns)
+    # Define the path to the shell script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'src', 'alembic_migrations.sh')
 
-    for index, row in df.iterrows():
-        print(row)
-        existing_department = Department.query.filter_by(id=row['id']).first()
-        if existing_department is None:
-            # Create a new Department instance for each row
-            new_department = Department(id=int(row['id']), name=row['name'])
-            db.session.add(new_department)
+    try:
+        # Run the shell script
+        result = subprocess.run([script_path], check=True, text=True, capture_output=True)
 
-    # Commit the session to save all new departments to the database
-    db.session.commit()
+        # If the script executes successfully, 'check=True' ensures that a non-zero exit
+        # status raises a CalledProcessError. If the script succeeds, you can proceed.
+
+        print("Script executed successfully.")
+        print("Output:\n", result.stdout)
+    except subprocess.CalledProcessError as e:
+        # The script did not execute successfully
+        print("Script execution failed.")
+        print("Standard Error:\n", e.stderr)
+        print("Standard Output (for debugging):\n", e.stdout)
     return jsonify(
         {'success': True,
-         'message': 'Departments uploaded successfully'}) \
+         'message': 'just testing'}) \
         , 200
 
 

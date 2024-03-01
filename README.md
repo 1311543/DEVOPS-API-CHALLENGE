@@ -25,6 +25,7 @@ api.py
 
 # GET  
 Invoke-WebRequest -Uri http://127.0.0.1:8081 -Method Get
+Invoke-WebRequest -Uri http://127.0.0.1:8081/employee-hires-2021 -Method Get
 
 
 ### Define the URI
@@ -41,7 +42,40 @@ $response = Invoke-WebRequest -Uri $uri -Method Post -Body $body -ContentType 'a
 
 ### Output the response content
 $response.Content
+#########################################################################################
+# Define the URI
+$uri = 'http://127.0.0.1:8081/upload-csv/departments'
 
+# Send the POST request without any body
+$response = Invoke-WebRequest -Uri $uri -Method Post
+
+# Output the response status code and content
+$response.StatusCode
+$response.Content
+
+##############################################################33
+# Define the URI
+$uri = 'http://127.0.0.1:8081/upload-csv/jobs'
+
+# Send the POST request without any body
+$response = Invoke-WebRequest -Uri $uri -Method Post
+
+# Output the response status code and content
+$response.StatusCode
+$response.Content
+
+#######################################################################33333
+
+##############################################################33
+# Define the URI
+$uri = 'http://127.0.0.1:8081/upload-csv/employees'
+$response = Invoke-WebRequest -Uri $uri -Method Post
+$response.StatusCode
+$response.Content
+
+
+
+################################################################
 
 ## DOCKERIZATION
 docker build -t francisjosue/globant-api:latest .
@@ -50,4 +84,6 @@ docker exec -it -p 8080:8080 francisjosue/globant-api bash
 
 ## 
 docker tag francisjosue/globant-api:latest francisjosue/globant-api:1.0.0
-Docker push francisjosue/globant-api:1.0.0
+docker push francisjosue/globant-api:1.0.0
+
+alembic init migrations
