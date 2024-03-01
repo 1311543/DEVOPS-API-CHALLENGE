@@ -20,3 +20,34 @@ api.py
 ## Usage
 - **Upload CSV**: POST `/upload-csv/<table_name>` with a multipart/form-data request containing the CSV file.
 - **Batch Insert**: POST `/insert-batch/<table_name>` with JSON payload.
+
+# REQUEST FROM WINDOW
+
+# GET  
+Invoke-WebRequest -Uri http://127.0.0.1:8081 -Method Get
+
+
+### Define the URI
+$uri = 'http://127.0.0.1:8081'
+
+### Create a hashtable for your form data or JSON payload
+$body = @{
+    key1 = 'value1'
+    key2 = 'value2'
+} | ConvertTo-Json
+
+### Send the POST request
+$response = Invoke-WebRequest -Uri $uri -Method Post -Body $body -ContentType 'application/json'
+
+### Output the response content
+$response.Content
+
+
+## DOCKERIZATION
+docker build -t francisjosue/globant-api:latest .
+docker run -p 8080:8080 francisjosue/globant-api
+docker exec -it -p 8080:8080 francisjosue/globant-api bash
+
+## 
+docker tag francisjosue/globant-api:latest francisjosue/globant-api:1.0.0
+Docker push francisjosue/globant-api:1.0.0
