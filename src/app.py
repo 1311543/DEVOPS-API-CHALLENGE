@@ -10,15 +10,18 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@localhost:33
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
 
+
 class Jobs(db.Model):
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+
 
 class Employee(db.Model):
     __tablename__ = 'employees'
@@ -31,6 +34,7 @@ class Employee(db.Model):
     job = db.relationship('Jobs', backref='employees')
     department = db.relationship('Department', backref='employees')
 
+
 class EmployeeAudit(db.Model):
     __tablename__ = 'employee_audit'
     id = db.Column(db.Integer, primary_key=True)
@@ -38,6 +42,7 @@ class EmployeeAudit(db.Model):
     name = db.Column(db.String(255), nullable=False)
     hire_date = db.Column(db.DateTime, nullable=True)
     missing_fields = db.Column(db.String(255), nullable=False)
+
 
 @app.route('/upload-csv/employees', methods=['POST'])
 def upload_csv_employees():
@@ -56,7 +61,8 @@ def upload_csv_employees():
             missing_fields.append('job_id')
         if department_id is None:
             missing_fields.append('department_id')
-        date = datetime.strptime(row['hire_date'].rstrip('Z'), "%Y-%m-%dT%H:%M:%S") if pd.notnull(row['hire_date']) else None
+        date = datetime.strptime(row['hire_date'].rstrip('Z'), "%Y-%m-%dT%H:%M:%S") if pd.notnull(
+            row['hire_date']) else None
         if missing_fields:
             print("sending rows with null {}".format(missing_fields))
             audit_entry = EmployeeAudit(
@@ -98,8 +104,9 @@ def upload_csv_departments():
     db.session.commit()
     return jsonify(
         {'success': True,
-         'message': 'Departments uploaded successfully'})\
+         'message': 'Departments uploaded successfully'}) \
         , 200
+
 
 @app.route('/upload-csv/jobs', methods=['POST'])
 def upload_csv_jobs():
@@ -117,8 +124,9 @@ def upload_csv_jobs():
     db.session.commit()
     return jsonify(
         {'success': True,
-         'message': 'Jobs uploaded successfully'})\
+         'message': 'Jobs uploaded successfully'}) \
         , 200
+
 
 # def upload_csv_to_db(csv_file):
 #     upload_csv_to_db('../dataset/departments.csv')
@@ -148,8 +156,9 @@ def index():
     db.session.commit()
     return jsonify(
         {'success': True,
-         'message': 'Departments uploaded successfully'})\
+         'message': 'Departments uploaded successfully'}) \
         , 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
