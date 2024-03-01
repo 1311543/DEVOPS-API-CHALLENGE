@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 from flask import current_app
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@localhost:3306/demo_db'
@@ -18,6 +19,68 @@ class Jobs(db.Model):
     __tablename__ = 'jobs'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
+
+class Employee(db.Model):
+    __tablename__ = 'employees'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    hire_date = db.Column(db.DateTime, nullable=True)
+    department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('jobs.id'), nullable=False)
+
+    job = db.relationship('Jobs', backref='employees')
+    department = db.relationship('Department', backref='employees')
+
+class EmployeeAudit(db.Model):
+    __tablename__ = 'employee_audit'
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    hire_date = db.Column(db.DateTime, nullable=True)
+    missing_fields = db.Column(db.String(255), nullable=False)
+
+@app.route('/upload-csv/employees', methods=['POST'])
+def upload_csv_employees():
+    csv_path = '../dataset/hired_employees.csv'
+    headers = ["id", "name", "hire_date", "department_id", "job_id"]
+    df = pd.read_csv(csv_path, header=None, names=headers)
+
+    for index, row in df.iterrows():
+        name = row['name'] if pd.notnull(row['name']) else "NONAME"
+
+        department_id = row['department_id'] if pd.notnull(row['department_id']) else None
+        job_id = row['job_id'] if pd.notnull(row['job_id']) else None
+        missing_fields = []
+
+        if job_id is None:
+            missing_fields.append('job_id')
+        if department_id is None:
+            missing_fields.append('department_id')
+        date = datetime.strptime(row['hire_date'].rstrip('Z'), "%Y-%m-%dT%H:%M:%S") if pd.notnull(row['hire_date']) else None
+        if missing_fields:
+            print("sending rows with null {}".format(missing_fields))
+            audit_entry = EmployeeAudit(
+                employee_id=row['id'],
+                name=row['name'],
+                hire_date=date,
+                missing_fields=', '.join(missing_fields)
+            )
+            db.session.add(audit_entry)
+        else:
+            existing_employee = Employee.query.filter_by(id=row['id']).first()
+            if existing_employee is None:
+                new_employee = Employee(
+                    id=row['id'],
+                    name=name,
+                    hire_date=date,
+                    department_id=int(department_id),  # Cast to int, assuming the column is not null
+                    job_id=int(job_id)  # Cast to int, assuming the column is not null
+                )
+                db.session.add(new_employee)
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Employees uploaded successfully'}), 200
+
 
 @app.route('/upload-csv/departments', methods=['POST'])
 def upload_csv_departments():
