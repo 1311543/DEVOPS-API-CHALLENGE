@@ -87,3 +87,7 @@ docker tag francisjosue/globant-api:latest francisjosue/globant-api:1.0.0
 docker push francisjosue/globant-api:1.0.0
 
 alembic init migrations
+
+
+https://github.com/1311543/DEVOPS-API-CHALLENGE/tree/feature/globant-code-challenge
+https://hub.docker.com/repository/docker/francisjosue/globant-api/general

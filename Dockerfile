@@ -8,5 +8,5 @@ RUN chmod +x /app/alembic_migrations.sh
 #WORKDIR /app/src
 #RUN sh /app/alembic_migrations.sh
 #WORKDIR /app
-CMD ["start.sh"]
-EXPOSE 8080
+#CMD ["start.sh"]
+#EXPOSE 8080

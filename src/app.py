@@ -9,7 +9,7 @@ import os
 
 app = Flask(__name__)
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@localhost:3306/demo_db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@mysql-demo3:3306/demo_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Eliam@mysql:3306/demo_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -45,6 +45,45 @@ class EmployeeAudit(db.Model):
     name = db.Column(db.String(255), nullable=False)
     hire_date = db.Column(db.DateTime, nullable=True)
     missing_fields = db.Column(db.String(255), nullable=False)
+
+@app.route('/upload-csv/departments', methods=['POST'])
+def upload_csv_departments():
+    csv_path = '../dataset/departments.csv'
+    headers = ["id", "name"]
+    df = pd.read_csv(csv_path, header=None, names=headers)
+
+    for index, row in df.iterrows():
+        existing_department = Department.query.filter_by(id=row['id']).first()
+        if existing_department is None:
+            new_department = Department(id=int(row['id']), name=row['name'])
+            db.session.add(new_department)
+
+    # Commit the session to save all new departments to the database
+    db.session.commit()
+    return jsonify(
+        {'success': True,
+         'message': 'Departments uploaded successfully'}) \
+        , 200
+
+
+@app.route('/upload-csv/jobs', methods=['POST'])
+def upload_csv_jobs():
+    csv_path = '../dataset/jobs.csv'
+    headers = ["id", "name"]
+    df = pd.read_csv(csv_path, header=None, names=headers)
+
+    for index, row in df.iterrows():
+        existing_job = Jobs.query.filter_by(id=row['id']).first()
+        if existing_job is None:
+            new_jobs = Jobs(id=int(row['id']), name=row['name'])
+            db.session.add(new_jobs)
+
+    # Commit the session to save all new departments to the database
+    db.session.commit()
+    return jsonify(
+        {'success': True,
+         'message': 'Jobs uploaded successfully'}) \
+        , 200
 
 
 @app.route('/upload-csv/employees', methods=['POST'])
@@ -89,46 +128,6 @@ def upload_csv_employees():
 
     db.session.commit()
     return jsonify({'success': True, 'message': 'Employees uploaded successfully'}), 200
-
-
-@app.route('/upload-csv/departments', methods=['POST'])
-def upload_csv_departments():
-    csv_path = '../dataset/departments.csv'
-    headers = ["id", "name"]
-    df = pd.read_csv(csv_path, header=None, names=headers)
-
-    for index, row in df.iterrows():
-        existing_department = Department.query.filter_by(id=row['id']).first()
-        if existing_department is None:
-            new_department = Department(id=int(row['id']), name=row['name'])
-            db.session.add(new_department)
-
-    # Commit the session to save all new departments to the database
-    db.session.commit()
-    return jsonify(
-        {'success': True,
-         'message': 'Departments uploaded successfully'}) \
-        , 200
-
-
-@app.route('/upload-csv/jobs', methods=['POST'])
-def upload_csv_jobs():
-    csv_path = '../dataset/jobs.csv'
-    headers = ["id", "name"]
-    df = pd.read_csv(csv_path, header=None, names=headers)
-
-    for index, row in df.iterrows():
-        existing_job = Jobs.query.filter_by(id=row['id']).first()
-        if existing_job is None:
-            new_jobs = Jobs(id=int(row['id']), name=row['name'])
-            db.session.add(new_jobs)
-
-    # Commit the session to save all new departments to the database
-    db.session.commit()
-    return jsonify(
-        {'success': True,
-         'message': 'Jobs uploaded successfully'}) \
-        , 200
 
 
 @app.route('/employee-hires-2021')
@@ -239,29 +238,7 @@ def higher_than_average_hires():
 
 @app.route("/")
 def index():
-    # Define the path to the shell script
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'src', 'alembic_migrations.sh')
-
-    try:
-        # Run the shell script
-        result = subprocess.run([script_path], check=True, text=True, capture_output=True)
-
-        # If the script executes successfully, 'check=True' ensures that a non-zero exit
-        # status raises a CalledProcessError. If the script succeeds, you can proceed.
-
-        print("Script executed successfully.")
-        print("Output:\n", result.stdout)
-    except subprocess.CalledProcessError as e:
-        # The script did not execute successfully
-        print("Script execution failed.")
-        print("Standard Error:\n", e.stderr)
-        print("Standard Output (for debugging):\n", e.stdout)
-    return jsonify(
-        {'success': True,
-         'message': 'just testing'}) \
-        , 200
-
+    return jsonify({'success': True, 'message': 'Hello, World'}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
